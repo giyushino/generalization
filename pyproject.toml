@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "generalization"
+description = "testing to see effects of layers in generalized models"
+readme = "README.md"
+#license = { text = "BUSL-1.1" }
+version = "0.1.0"
+authors = [{ name = "Allan Zhang", email = "allanzhang@ucla.edu" }]
+requires-python = ">=3.12"
+dependencies = [
+    "torch",
+    "numpy",
+    "datasets",
+    "argparse",
+]
