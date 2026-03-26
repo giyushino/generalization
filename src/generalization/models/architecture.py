@@ -99,7 +99,7 @@ class TransformerBlock(nn.Module):
         )
 
     def forward(self, x):
-        # can't do += in pytoch since this
+        # can't do += in pytorch since this
         # updates values in place, preventing
         # gradients from flowing properly
         x = x + self.mha(self.norm1(x))
