@@ -6,9 +6,10 @@ tokenize batches at the same time
 """
 
 class AdditionTokenizer:
-    def __init__(self, vocab: dict[str, int], padding_id: int):
+    def __init__(self, vocab: dict[str, int], eos_id, padding_id: int):
         self.vocab = vocab
         self.inv_vocab = {v: k for k, v in vocab.items()}
+        self.eos_id = eos_id
         self.padding_id = padding_id
     
     def pad(self, tokenized: list[list[int]]) -> list[list[int]]:
@@ -30,6 +31,7 @@ class AdditionTokenizer:
             tokenized = []
             for letter in untokenized:
                 tokenized.append(self.vocab[letter])
+            tokenized.append(self.eos_id)
             encoded.append(tokenized)
         
         self.pad(encoded)
@@ -73,6 +75,7 @@ if __name__ == "__main__":
 
     tokenizer_config = {
         "vocab": vocab,
+        "eos_id": 12,
         "padding_id": 13
     }
 
