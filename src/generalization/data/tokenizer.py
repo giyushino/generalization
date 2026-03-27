@@ -25,6 +25,7 @@ class AdditionTokenizer:
         # not sure about enforcing list
         # might be better to accept str
         encoded = []
+
         for untokenized in inputs:
             tokenized = []
             for letter in untokenized:
@@ -32,10 +33,12 @@ class AdditionTokenizer:
             encoded.append(tokenized)
         
         self.pad(encoded)
+
         return encoded
 
     def decode(self, inputs: list[list[int]]) -> list[str]:
         decoded = []
+
         for tokenized in inputs:
             detokenized = ""
             for token in tokenized:

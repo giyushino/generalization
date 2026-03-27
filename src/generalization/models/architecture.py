@@ -76,6 +76,7 @@ class MultiHeadAttention(nn.Module):
         V = self.split_heads(self.v_proj(x)) 
 
         attn_output = self.scaled_cross_attention(Q, K, V)
+
         return self.out_proj(self.combine_heads(attn_output))
         
 
@@ -103,6 +104,7 @@ class TransformerBlock(nn.Module):
         # gradients from flowing properly
         x = x + self.mha(self.norm1(x))
         x = x + self.ffn(self.norm2(x))
+
         return x
 
 if __name__ == "__main__": 
