@@ -2,12 +2,12 @@
 """
 PyTorch provides torch.nn.Transformer,
 but it would be relatively interesting
-to write our own transformer implementation
-from scratch. In theory we should achieve
+to write our own transformer from
+scratch. In theory we should achieve
 parity with the native implementation
 
 Later I want to write a megafused kernel to
-do all of this one one pass
+do all of this one one pass (either CUDA or triton)
 """
 
 import math
@@ -16,7 +16,7 @@ import torch.nn as nn
 import torch.functional as F
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, num_heads, emb_dim):
+    def __init__(self, num_heads: int, emb_dim: int):
         super().__init__()
         # for mha we split the embedding dimension across heads
         assert emb_dim % num_heads == 0, "emb_dim must be divisible by num_head"
@@ -31,8 +31,8 @@ class MultiHeadAttention(nn.Module):
         self.v_proj = nn.Linear(emb_dim, emb_dim)
         self.out_proj = nn.Linear(emb_dim, emb_dim)
     
-    def split_heads(self, x):
-        # reshape input tensor for multi-head attention
+    def split_heads(self, x: torch.Tensor) -> torch.Tensor:
+        # reshape input Tensor for multi-head attention
         # x is (batch_size, seq_length, emb_dim)
         B, S, D = x.shape
         assert D == self.emb_dim
@@ -42,14 +42,14 @@ class MultiHeadAttention(nn.Module):
         # some optimization thoughts:
         return x.reshape(B, S, self.num_heads, self.head_dim).transpose(1, 2)
 
-    def combine_heads(self, x):
+    def combine_heads(self, x: torch.Tensor) -> torch.Tensor:
         # combine outputs from each head into original shape
         B, _, S, _ = x.shape
     
         # order of operations is reverse from split_heads
         return x.transpose(1, 2).reshape(B, S, self.emb_dim)
 
-    def scaled_cross_attention(self, Q, K, V):
+    def scaled_cross_attention(self, Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
         # Q matrix contains what information each token needs
         # K matrix contains what information each token has
         # V matrix contains what information each token provides
@@ -70,43 +70,40 @@ class MultiHeadAttention(nn.Module):
         return torch.matmul(attn_probs, V)
 
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         Q = self.split_heads(self.q_proj(x)) 
         K = self.split_heads(self.k_proj(x)) 
         V = self.split_heads(self.v_proj(x)) 
 
         attn_output = self.scaled_cross_attention(Q, K, V)
-
         return self.out_proj(self.combine_heads(attn_output))
         
 
 class TransformerBlock(nn.Module):
-    def __init__(self, num_heads, emb_dim, ffn_mult):
+    def __init__(self, num_heads: int, emb_dim: int, ffn_mult: int):
         super().__init__()
-        self.mha = MultiHeadAttention(num_heads=num_heads, emb_dim=emb_dim)
-
+        self.mha = MultiHeadAttention(num_heads, emb_dim)
         self.norm1 = nn.LayerNorm(emb_dim)
         self.norm2 = nn.LayerNorm(emb_dim)
 
         # maybe we make param to change the
         # activation function?
-
         ffn_dim = emb_dim * ffn_mult
+        assert ffn_dim.is_integer(), "emb_dim * ffn_mult must result in an integer"
+
         self.ffn = nn.Sequential(
             nn.Linear(emb_dim, ffn_dim),
             nn.ReLU(),
             nn.Linear(ffn_dim, emb_dim)
         )
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # can't do += in pytorch since this
         # updates values in place, preventing
         # gradients from flowing properly
         x = x + self.mha(self.norm1(x))
         x = x + self.ffn(self.norm2(x))
         return x
-
-
 
 if __name__ == "__main__": 
     config = {
@@ -116,11 +113,7 @@ if __name__ == "__main__":
     }
     
     mha = TransformerBlock(**config)
-    rand_tensor = torch.rand((2, 10, 728))
-    print(rand_tensor)
-    print(rand_tensor.shape)
-    output = mha.forward(rand_tensor)
+    rand_Tensor = torch.rand((2, 10, 728))
+    output = mha(rand_Tensor)
     print(output)
-
-
 
