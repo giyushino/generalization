@@ -1,6 +1,5 @@
 import random
 
-
 class AdditionDataset():
     def __init__(self, num_samples: int, num_digits: list[int]):
         assert len(num_digits) == 2, "num_digits must contain lower and upper bound"
@@ -19,8 +18,12 @@ class AdditionDataset():
             data.append(equation)
 
         return data
+    
+    def __len__(self):
+        return len(self.data)
 
-
+    def __getitem__(self, key: slice | int):
+        return self.data[key]
 
 
 
@@ -34,4 +37,4 @@ if __name__ == "__main__":
     }
 
     dataset = AdditionDataset(**dataset_config)
-    print(dataset.data) 
+    print(dataset.data[0])

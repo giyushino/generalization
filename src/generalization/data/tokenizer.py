@@ -5,24 +5,27 @@ implement multiprocessing to
 tokenize batches at the same time
 """
 
+import torch
+
 class AdditionTokenizer:
+    # should we enforce max seq length within the tokenizer?
     def __init__(self, vocab: dict[str, int], eos_id, padding_id: int):
         self.vocab = vocab
         self.inv_vocab = {v: k for k, v in vocab.items()}
         self.eos_id = eos_id
         self.padding_id = padding_id
     
-    def pad(self, tokenized: list[list[int]]) -> list[list[int]]:
+    def pad(self, tokenized: list[list[int]]) -> None:
         # update in place? not sure how i feel
         # about this design choice
         max_list_len = len(max(tokenized, key=len))
 
         for tokenized_sample in tokenized:
-            tokenized_sample.extend([self.padding_id] * (max_list_len - len(tokenized_sample)))
+            tokenized_sample[:0] = [self.padding_id] * (max_list_len - len(tokenized_sample))
 
         return
 
-    def encode(self, inputs: list[str]) -> list[list[int]]:
+    def encode(self, inputs: list[str]) -> torch.Tensor:
         # not sure about enforcing list
         # might be better to accept str
         encoded = []
@@ -36,7 +39,7 @@ class AdditionTokenizer:
         
         self.pad(encoded)
 
-        return encoded
+        return torch.tensor(encoded)
 
     def decode(self, inputs: list[list[int]]) -> list[str]:
         decoded = []
@@ -48,11 +51,6 @@ class AdditionTokenizer:
             decoded.append(detokenized)
 
         return decoded
-
-    
-
-
-
 
 
 if __name__ == "__main__":
@@ -82,3 +80,4 @@ if __name__ == "__main__":
     tokenizer = AdditionTokenizer(**tokenizer_config)
     example = ["123+123=", "1+1="]
     print(tokenizer.encode(example))
+
