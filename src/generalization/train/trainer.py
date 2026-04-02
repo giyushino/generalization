@@ -42,7 +42,8 @@ class AdditionTrainer():
 
         return F.cross_entropy(
             shift_logits.reshape(-1, V),
-            shift_labels.reshape(-1)
+            shift_labels.reshape(-1),
+            ignore_index=self.tokenizer.padding_id,
         )
 
     def train(self):
@@ -50,14 +51,18 @@ class AdditionTrainer():
         for epoch in range(self.epochs):
             for index, batch in enumerate(self.dataloader):
                 tokenized_batch = batch["encoded"].to(self.device)
+                attention_mask = tokenized_batch != self.tokenizer.padding_id
+                print(f"step: {index}/{100} || epoch: {epoch}")
                 self.optimizer.zero_grad()
-                output = self.model(tokenized_batch)
+                output = self.model(tokenized_batch, attention_mask)
                 loss = self.loss(tokenized_batch, output)
-                print(f"{loss=}")
+                print(loss) 
                 loss.backward()
                 self.optimizer.step()
 
-        
+            print(f"{loss=}")
+
+        torch.save(self.model.state_dict(), "/home/allan/nvim/generalization/checkpoints/generalized/model.pth")
    
 if __name__ == "__main__":
     vocab = {
@@ -88,16 +93,17 @@ if __name__ == "__main__":
         "emb_dim": 728,
         "ffn_mult": 4,
         "vocab_size": 14,
-        "max_seq_len": 19
+        "max_seq_len": 30
     }
     dataset_config = {
-        "num_samples": 10_000,
-        "num_digits": [4, 5]
+        "num_samples": 500_000,
+        "num_digits": [1, 5],
+        "seed": 42
     }
     trainer_config = {
         "epochs": 1,
         "learning_rate": 0.01,
-        "batch_size": 10,
+        "batch_size": 100,
         "device": "cuda",
         "model_config": model_config,
         "tokenizer_config": tokenizer_config,

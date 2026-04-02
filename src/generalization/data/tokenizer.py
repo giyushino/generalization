@@ -3,6 +3,10 @@ naive tokenization
 TODO:
 implement multiprocessing to
 tokenize batches at the same time
+
+
+i need to refactor to support the question 
+
 """
 
 import torch

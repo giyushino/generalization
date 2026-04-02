@@ -34,22 +34,28 @@ class AdditionTransformer(nn.Module):
         self.output = nn.Linear(emb_dim, vocab_size)
         t1 = time.perf_counter()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         B, S = x.shape
 
-        # embed with positional information
-        positions = torch.arange(S, device=x.device)
-        x = self.token_emb(x) + self.pos_emb(positions)
+        # Keep left-padded batches compatible with learned absolute positions by
+        # numbering only the non-pad tokens.
+        if attention_mask is None:
+            position_ids = torch.arange(S, device=x.device).unsqueeze(0).expand(B, -1)
+        else:
+            position_ids = attention_mask.long().cumsum(dim=1) - 1
+            position_ids = position_ids.masked_fill(~attention_mask, 0)
+
+        x = self.token_emb(x) + self.pos_emb(position_ids)
 
         for block in self.blocks:
-            x = block(x)
+            x = block(x, attention_mask)
         
         # (batch_size, seq_lenth, vocab_size)
         return self.output(self.norm(x))
 
 class AdditionPredicter():
     def __init__(self, model_config: dict, tokenizer_config: dict, device):
-        self.model = AdditionTransformer(**model_config)
+        self.model = AdditionTransformer(**model_config).to(device)
         self.tokenizer = AdditionTokenizer(**tokenizer_config)
         self.device = device
 
@@ -58,9 +64,50 @@ class AdditionPredicter():
         # a bus, so some ops will not be vectorized
 
         tokenized_input = self.tokenizer.encode(input).to(self.device)
+        tokenized_input = tokenized_input[:, :-1]
 
-        logits = self.model(tokenized_input)
-        next_tokens = logits[:, -1, :].argmax(dim=-1)
+        max_len = self.model.pos_emb.num_embeddings
+        outputs: list[torch.Tensor | None] = [None] * len(input)
+        active_indices = torch.arange(len(input), device=self.device)
+
+        self.model.eval()
+        with torch.no_grad():
+            while tokenized_input.size(0) > 0 and tokenized_input.size(1) < max_len:
+                attention_mask = tokenized_input != self.tokenizer.padding_id
+                logits = self.model(tokenized_input, attention_mask)
+                next_tokens = logits[:, -1, :].argmax(dim=-1)
+                tokenized_input = torch.cat([tokenized_input, next_tokens.unsqueeze(1)], dim=1)
+
+                finished_mask = next_tokens == self.tokenizer.eos_id
+
+                for batch_idx, original_idx in enumerate(active_indices[finished_mask].tolist()):
+                    outputs[original_idx] = tokenized_input[finished_mask][batch_idx].detach().cpu()
+
+                alive_mask = ~finished_mask
+                tokenized_input = tokenized_input[alive_mask]
+                active_indices = active_indices[alive_mask]
+
+        for batch_idx, original_idx in enumerate(active_indices.tolist()):
+            outputs[original_idx] = tokenized_input[batch_idx].detach().cpu()
+
+        decoded_outputs = []
+        for output in outputs:
+            cleaned = []
+            for token in output.tolist():
+                if token == self.tokenizer.padding_id:
+                    continue
+                if token == self.tokenizer.eos_id:
+                    break
+                cleaned.append(token)
+            decoded_outputs.append(self.tokenizer.decode([cleaned])[0])
+
+        return decoded_outputs
+        
+
+
+
+
+
 
 class VisionTransfomer(nn.Module):
     # todo
@@ -108,4 +155,4 @@ if __name__ == "__main__":
     rand_tensor = torch.randint(0, 13, (2, 10))
     test = ["84810+15592=100402", "84810+15593=100403"]
 
-    model.generate(test)
+    print(model.generate(test))

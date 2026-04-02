@@ -8,7 +8,7 @@ from generalization.data.tokenizer import AdditionTokenizer
 
 
 class AdditionDataloader():
-    def __init__(self, tokenizer: AdditionTokenizer, dataset: AdditionDataset, batch_size: int):
+    def __init__(self, tokenizer: AdditionTokenizer, dataset: AdditionDataset, batch_size: int, mode: str = "train"):
         self.tokenizer = tokenizer
         self.dataset = dataset
         self.num_samples = len(dataset)
@@ -16,6 +16,7 @@ class AdditionDataloader():
 
         self.idx = 0 - batch_size
         self.batch = {}
+        self.mode = mode
 
     def __iter__(self):
         self.idx = 0 - self.batch_size
@@ -27,7 +28,10 @@ class AdditionDataloader():
             raise StopIteration
         else:
             self.idx += self.batch_size
-            batch = self.dataset[self.idx: min(self.idx + self.batch_size, self.num_samples)]
+            if self.mode == "train":
+                batch = self.dataset[self.idx: min(self.idx + self.batch_size, self.num_samples)]
+            else:
+                batch = [self.dataset[idx]["question"] for idx in range(self.idx, min(self.idx + self.batch_size, self.num_samples))] 
 
             self.batch = {
                 "original": batch,
@@ -67,12 +71,14 @@ if __name__ == "__main__":
 
     dataset_config = {
         "num_samples": 100,
-        "num_digits": [4, 5]
+        "num_digits": [4, 5],
+        "seed": 42,
+        "mode": "eval"
     }
 
     tokenizer = AdditionTokenizer(**tokenizer_config)
     dataset = AdditionDataset(**dataset_config)
-    dataloader = AdditionDataloader(tokenizer, dataset, 2)
+    dataloader = AdditionDataloader(tokenizer, dataset, 2, "eval")
     
     for batch in dataloader:
         print(batch["original"])

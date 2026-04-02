@@ -49,7 +49,13 @@ class MultiHeadAttention(nn.Module):
         # order of operations is reverse from split_heads
         return x.transpose(1, 2).reshape(B, S, self.emb_dim)
 
-    def scaled_cross_attention(self, Q: torch.Tensor, K: torch.Tensor, V: torch.Tensor) -> torch.Tensor:
+    def scaled_self_attention(
+        self,
+        Q: torch.Tensor,
+        K: torch.Tensor,
+        V: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         # Q matrix contains what information each token needs
         # K matrix contains what information each token has
         # V matrix contains what information each token provides
@@ -62,20 +68,38 @@ class MultiHeadAttention(nn.Module):
 
         # produces (batch_size, num_heads, seq_length, seq_length)
         # torch.matmul automatically broadcasts over the first two dims
-        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.head_dim) 
+        attn_scores = torch.matmul(Q, K.transpose(-2, -1)) / math.sqrt(self.head_dim)
+        mask_value = torch.finfo(attn_scores.dtype).min
+
+        S = Q.size(-2)
+        causal_mask = torch.triu(
+            torch.ones(S, S, device=Q.device, dtype=torch.bool),
+            diagonal=1,
+        )
+        attn_scores = attn_scores.masked_fill(causal_mask, mask_value)
+
+        if attention_mask is not None:
+            key_padding_mask = ~attention_mask[:, None, None, :]
+            query_padding_mask = ~attention_mask[:, None, :, None]
+            attn_scores = attn_scores.masked_fill(key_padding_mask, mask_value)
+            attn_scores = attn_scores.masked_fill(query_padding_mask, 0.0)
+
         attn_probs = torch.softmax(attn_scores, dim=-1)
+
+        if attention_mask is not None:
+            attn_probs = attn_probs.masked_fill(query_padding_mask, 0.0)
        
         # this final matrix mult mixes information between the embeddings
         # of a token with the tokens it attended to
         return torch.matmul(attn_probs, V)
 
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         Q = self.split_heads(self.q_proj(x)) 
         K = self.split_heads(self.k_proj(x)) 
         V = self.split_heads(self.v_proj(x)) 
 
-        attn_output = self.scaled_cross_attention(Q, K, V)
+        attn_output = self.scaled_self_attention(Q, K, V, attention_mask)
 
         return self.out_proj(self.combine_heads(attn_output))
         
@@ -98,11 +122,11 @@ class TransformerBlock(nn.Module):
             nn.Linear(ffn_dim, emb_dim)
         )
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
         # can't do += in pytorch since this
         # updates values in place, preventing
         # gradients from flowing properly
-        x = x + self.mha(self.norm1(x))
+        x = x + self.mha(self.norm1(x), attention_mask)
         x = x + self.ffn(self.norm2(x))
 
         return x
@@ -118,4 +142,3 @@ if __name__ == "__main__":
     rand_Tensor = torch.rand((2, 10, 728))
     output = mha(rand_Tensor)
     print(output)
-
