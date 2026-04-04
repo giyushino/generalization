@@ -112,17 +112,17 @@ if __name__ == "__main__":
     }
     dataset_config = {
         "num_samples": 10_000,
-        "num_digits": [4, 5],
+        "num_digits": [5,5],
         "seed": 1001,
         "mode": "eval"
     }
     trainer_config = {
-        "batch_size": 100,
+        "batch_size": 20,
         "device": "cuda",
         "model_config": model_config,
         "tokenizer_config": tokenizer_config,
         "dataset_config": dataset_config,
-        "checkpoint_path": "/home/allan/nvim/generalization/checkpoints/generalized/model.pth",
+        "checkpoint_path": "/home/allan/nvim/generalization/checkpoints/overfit/model.pth",
         "save_path": "/home/allan/nvim/generalization/results/overfit/",
         "save_name": "overfit.jsonl"
     }

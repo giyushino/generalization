@@ -62,7 +62,7 @@ class AdditionTrainer():
 
             print(f"{loss=}")
 
-        torch.save(self.model.state_dict(), "/home/allan/nvim/generalization/checkpoints/generalized/model.pth")
+        torch.save(self.model.state_dict(), "/home/allan/nvim/generalization/checkpoints/overfit/model.pth")
    
 if __name__ == "__main__":
     vocab = {
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     }
     dataset_config = {
         "num_samples": 500_000,
-        "num_digits": [1, 5],
+        "num_digits": [5, 5],
         "seed": 42
     }
     trainer_config = {
