@@ -12,6 +12,9 @@ class AdditionDataset():
             self.data = self._populate_eval(self.num_samples, self.lower, self.upper)
         random.seed(seed)
 
+        print(self.lower)
+        print(self.upper)
+
     def _populate_train(self, num_samples: int, lower: int, upper: int):
         data = []
         
@@ -46,7 +49,7 @@ class AdditionDataset():
 if __name__ == "__main__":
     dataset_config = {
         "num_samples": 100,
-        "num_digits": [4, 5],
+        "num_digits": [1, 4],
         "seed": 42,
         "mode": eval
     }

@@ -59,8 +59,9 @@ class AdditionTrainer():
                 print(loss) 
                 loss.backward()
                 self.optimizer.step()
-
-            print(f"{loss=}")
+            
+                if index % 100 == 0:
+                    print(f"{loss=}")
 
         torch.save(self.model.state_dict(), "/home/allan/nvim/generalization/checkpoints/overfit/model.pth")
    
@@ -97,14 +98,14 @@ if __name__ == "__main__":
     }
     dataset_config = {
         "num_samples": 500_000,
-        "num_digits": [5, 5],
+        "num_digits": [1, 4],
         "seed": 42
     }
     trainer_config = {
         "epochs": 1,
         "learning_rate": 0.01,
-        "batch_size": 100,
-        "device": "cuda",
+        "batch_size": 1000,
+        "device": "cuda:0",
         "model_config": model_config,
         "tokenizer_config": tokenizer_config,
         "dataset_config": dataset_config
