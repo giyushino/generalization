@@ -1,6 +1,8 @@
 """
 todo if we ever want to use more complex
 datasets and resume training
+
+what we should do is number padding
 """
 
 from generalization.data.dataset import AdditionDataset

@@ -34,7 +34,12 @@ class AdditionTransformer(nn.Module):
         self.output = nn.Linear(emb_dim, vocab_size)
         t1 = time.perf_counter()
 
-    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self,
+        x: torch.Tensor,
+        attention_mask: torch.Tensor | None = None,
+        return_hidden_states: bool = False,
+    ) -> torch.Tensor | tuple[torch.Tensor, list[torch.Tensor]]:
         B, S = x.shape
 
         # Keep left-padded batches compatible with learned absolute positions by
@@ -46,12 +51,19 @@ class AdditionTransformer(nn.Module):
             position_ids = position_ids.masked_fill(~attention_mask, 0)
 
         x = self.token_emb(x) + self.pos_emb(position_ids)
+        hidden_states: list[torch.Tensor] = [x] if return_hidden_states else []
 
         for block in self.blocks:
             x = block(x, attention_mask)
+            if return_hidden_states:
+                hidden_states.append(x)
         
         # (batch_size, seq_lenth, vocab_size)
-        return self.output(self.norm(x))
+        logits = self.output(self.norm(x))
+        if return_hidden_states:
+            return logits, hidden_states
+
+        return logits
 
 class AdditionPredicter():
     def __init__(self, model_config: dict, tokenizer_config: dict, device):
